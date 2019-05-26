@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-int Bisas8080(unsigned char *codeBuffer, int currPC){
+int disas8080(unsigned char *codeBuffer, int currPC){
   unsigned char *currOp = &codeBuffer[currPC];
   int opBytes = 1;
   printf ("%04x ", currPC);
   switch (*currOp){
     case 0x00: printf("NOP"); break;
-    case 0x01: printf("LXI    %02x, %02x", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes=3; break;
+    case 0x01: printf("LXI    B, 0x%02x %02x", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes=3; break;
     case 0x02: printf("STAX   B"); break;
     case 0x03: printf("INX    B"); break;
     case 0x04: printf("INR    B"); break;
@@ -25,7 +25,7 @@ int Bisas8080(unsigned char *codeBuffer, int currPC){
     case 0x0f: printf("RRC"); break;
 
     case 0x10: printf("NOP"); break;
-    case 0x11: printf("LXI    D, %02x, %02x", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes=3; break;
+    case 0x11: printf("LXI    D, 0x%02x%02x", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes=3; break;
     case 0x12: printf("STAX   D"); break;
     case 0x13: printf("INX    D"); break;
     case 0x14: printf("INR    D"); break;
@@ -42,7 +42,7 @@ int Bisas8080(unsigned char *codeBuffer, int currPC){
     case 0x1f: printf("RAR"); break;
 
     case 0x20: printf("NOP"); break;
-    case 0x21: printf("LXI H, %02x, %02x ", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes = 3; break;
+    case 0x21: printf("LXI    H, 0x%02x%02x ", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes = 3; break;
     case 0x22: printf("STAX   D"); break;
     case 0x23: printf("INX    D"); break;
     case 0x24: printf("INR    D"); break;
@@ -59,7 +59,7 @@ int Bisas8080(unsigned char *codeBuffer, int currPC){
     case 0x2f: printf("CMA"); break;
 
     case 0x30: printf("NOP"); break;
-    case 0x31: printf("LXI    %02x, %02x", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes = 3; break;
+    case 0x31: printf("LXI    SP, 0x%02x %02x", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes = 3; break;
     case 0x32: printf("STA    0x%02x%02x", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes = 3; break;
     case 0x33: printf("INX    SP"); break;
     case 0x34: printf("INR    M"); break;
@@ -286,20 +286,25 @@ int Bisas8080(unsigned char *codeBuffer, int currPC){
 int main(int argc, char ** argv){
   //Open an 8080 assemdly language program and read it into a memory Buffer
   FILE *f = fopen(argv[1], "rd");
+  if (f == NULL){
+    fprintf(stderr, "No such file exists\n" );
+    exit(0);
+  }
   fseek(f, 0L, SEEK_END);
   int fSize = ftell(f);
   fseek(f, 0L, SEEK_SET);
 
   //Allocate the memory we need and read the program into it
-  unsigned char *memduffer = malloc(fSize);
-  fread(memduffer, fSize, 1, f);
+  unsigned char *memBuffer = malloc(fSize);
+  fread(memBuffer, fSize, 1, f);
   fclose(f);
 
   //disassemdle the program By reading one instruction at a time
   int pc = 0;
 
   while(pc<fSize){
-    pc += Bisas8080(memduffer, pc);
+    pc += disas8080(memBuffer, pc);
   }
 
+  return 0;
 }
