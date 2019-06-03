@@ -33,12 +33,28 @@ void unimplementedInstruction(struct State8080* state){
   exit(1);
 }
 
+//Checks the parity of a given value
+//Hard coded to ONLY work with 8 bit values
+int checkParity(uint8_t x){
+  short y = x ^ (x >> 1);
+  y = y ^ (y >> 2);
+  y = y ^ (y >> 4);
+  y = y ^ (y >> 8);
+  if (y & 1)
+    return 1;
+  return 0;
+}
+
+
 int emuOp(struct State8080* currState){
+  if (currState->pc == 0x0add){
+    exit(1);
+  }
   unsigned char* currOp = &currState->memory[currState->pc];
-  printf("%2x at current PC 0x%04x\nCurrent Processor State:\n", currState->memory[currState->pc], currState->pc);
-  printf("\tC=%d,P=%d,S=%d,Z=%d\n", currState->cc.cy, currState->cc.p,
+  printf("0x%02x%02x%02x at current PC 0x%04x\nCurrent Processor State:\n", currOp[0],currOp[1],currOp[2], currState->pc);
+  printf(" C=%d    P=%d    S=%d    Z=%d\n", currState->cc.cy, currState->cc.p,
         currState->cc.s, currState->cc.z);
-  printf("\tA 0x%02x B 0x%02x C 0x%02x D 0x%02x E 0x%02x H 0x%02x L 0x%02x SP 0x%04x\n",
+  printf(" A:0x%02x B:0x%02x C:0x%02x D:0x%02x E:0x%02x H:0x%02x L:0x%02x SP:0x%04x\n",
         currState->a, currState->b, currState->c, currState->d,
         currState->e, currState->h, currState->l, currState->sp);
 
@@ -50,81 +66,143 @@ int emuOp(struct State8080* currState){
       break;
     }
 
-    case 0x01: printf("LXI    B, 0x%02x %02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x01:{
+      printf("LXI    B, 0x%02x %02x", currOp[2], currOp[1]);
+      currState->b = currOp[2];
+      currState->c = currOp[1];
+			nextPC = currState->pc+3;
+    }
     case 0x02: printf("STAX   B"); unimplementedInstruction(currState); break;
     case 0x03: printf("INX    B"); unimplementedInstruction(currState); break;
     case 0x04: printf("INR    B"); unimplementedInstruction(currState); break;
-    case 0x05: printf("DCR    B"); unimplementedInstruction(currState); break;
+    case 0x05:{
+      printf("DCR    B");
+			currState->b = currState->b - 1;
+			currState->cc.z = (currState->b == 0);
+			currState->cc.s = (0x80 == (currState->b & 0x80));
+      //TODO: double check that checkParity works correctly
+			currState->cc.p = checkParity(currState->b);
+      nextPC = currState->pc+1;
+      break;
+		}
     case 0x06:{
-      printf("MVI    B, %02x", currState->memory[currState->pc+1]);
-      currState->b = 
+      printf("MVI    B, %02x", currOp[1]);
+      currState->b = currOp[1];
       nextPC = (currState->pc) + 2;
       break;
     }
     case 0x07: printf("RLC"); unimplementedInstruction(currState); break;
     case 0x08: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0x09: printf("DAD    B"); unimplementedInstruction(currState); break;
+    case 0x09:{
+      printf("DAD    B");
+      uint32_t hl = ((currState->h << 8) | currState->l);
+      uint32_t bc = ((currState->b << 8) | currState->c);
+      uint32_t res = hl + bc;
+      currState->h = (res & 0xff00) >> 8;
+      currState->l = res & 0xff;
+      currState->cc.cy = ((res & 0xffff0000) > 0);
+      break;
+    }
     case 0x0a: printf("LDAX   B"); unimplementedInstruction(currState); break;
     case 0x0b: printf("DCX    B"); unimplementedInstruction(currState); break;
     case 0x0c: printf("INR    C"); unimplementedInstruction(currState); break;
     case 0x0d: printf("DCR    C"); unimplementedInstruction(currState); break;
-    case 0x0e: printf("MVI    C, %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x0e: {
+      printf("MVI    C, %02x", currOp[1]);
+    }
     case 0x0f: printf("RRC"); unimplementedInstruction(currState); break;
 
     case 0x10: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0x11: printf("LXI    D, 0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x11:{
+      printf("LXI    D, 0x%02x%02x", currOp[2], currOp[1]);
+      currState->d = currOp[2];
+      currState->e = currOp[1];
+      nextPC = (currState->pc) + 3;
+      break;
+    }
     case 0x12: printf("STAX   D"); unimplementedInstruction(currState); break;
-    case 0x13: printf("INX    D"); unimplementedInstruction(currState); break;
+    case 0x13: {
+      printf("INX    D");
+      currState->e++;
+      //if e has overflowed, increment d
+			if (currState->e == 0)
+				currState->d++;
+      nextPC = (currState->pc) + 1;
+      break;
+    }
     case 0x14: printf("INR    D"); unimplementedInstruction(currState); break;
     case 0x15: printf("DCR    D"); unimplementedInstruction(currState); break;
-    case 0x16: printf("MVI    D, %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x16: printf("MVI    D, %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0x17: printf("RAL"); unimplementedInstruction(currState); break;
     case 0x18: printf("NOP"); unimplementedInstruction(currState); break;
     case 0x19: printf("DAD    D"); unimplementedInstruction(currState); break;
-    case 0x1a: printf("LDAX   D"); unimplementedInstruction(currState); break;
+    case 0x1a:{
+      printf("LDAX   D");
+      currState->a = currState->memory[((short)currState->d) << 8 | currState->e];
+      nextPC = (currState->pc) + 1;
+      break;
+    }
     case 0x1b: printf("DCX    D"); unimplementedInstruction(currState); break;
     case 0x1c: printf("INR    E"); unimplementedInstruction(currState); break;
     case 0x1d: printf("DCR    E"); unimplementedInstruction(currState); break;
-    case 0x1e: printf("MVI    E, %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x1e: printf("MVI    E, %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0x1f: printf("RAR"); unimplementedInstruction(currState); break;
 
     case 0x20: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0x21: printf("LXI    H, 0x%02x%02x ", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
-    case 0x22: printf("STAX   D"); unimplementedInstruction(currState); break;
-    case 0x23: printf("INX    D"); unimplementedInstruction(currState); break;
-    case 0x24: printf("INR    D"); unimplementedInstruction(currState); break;
-    case 0x25: printf("DCR    D"); unimplementedInstruction(currState); break;
-    case 0x26: printf("MVI    D, %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x21:{
+      printf("LXI    H, 0x%02x%02x ", currOp[2], currOp[1]);
+      currState->h = currOp[2];
+      currState->l = currOp[1];
+      nextPC = (currState->pc) + 3;
+      break;
+    }
+    case 0x22: printf("SHLD   0x%02x%02x ", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
+    case 0x23: {
+      printf("INX    H");
+      currState->l++;
+			if (currState->l == 0)
+				currState->h++;
+      nextPC = (currState->pc) + 1;
+      break;
+    }
+    case 0x24: printf("INR    H"); unimplementedInstruction(currState); break;
+    case 0x25: printf("DCR    H"); unimplementedInstruction(currState); break;
+    case 0x26: printf("MVI    H, %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0x27: printf("DAA    "); unimplementedInstruction(currState); break;
     case 0x28: printf("NOP"); unimplementedInstruction(currState); break;
     case 0x29: printf("DAD    H"); unimplementedInstruction(currState); break;
-    case 0x2a: printf("LHLD   %02x, %02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x2a: printf("LHLD   %02x, %02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0x2b: printf("DCX    H"); unimplementedInstruction(currState); break;
     case 0x2c: printf("INR    L"); unimplementedInstruction(currState); break;
     case 0x2d: printf("DCR    L"); unimplementedInstruction(currState); break;
-    case 0x2e: printf("MVI    L, %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x2e: printf("MVI    L, %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0x2f: printf("CMA"); unimplementedInstruction(currState); break;
 
     case 0x30: printf("NOP"); unimplementedInstruction(currState); break;
     case 0x31:{
       printf("LXI    SP, 0x%02x %02x", currState->memory[currState->pc+2], currState->memory[currState->pc+1]);
-      currState->sp = (((short)currState->memory[(currState->pc)+2])) << 8 | currState->memory[(currState->pc)+1];
+      currState->sp =((short)currOp[2] << 8 | currOp[1]);
       nextPC = (currState->pc) + 3;
       break;
     }
-    case 0x32: printf("STA    0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x32: printf("STA    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0x33: printf("INX    SP"); unimplementedInstruction(currState); break;
     case 0x34: printf("INR    M"); unimplementedInstruction(currState); break;
     case 0x35: printf("DCR    M"); unimplementedInstruction(currState); break;
-    case 0x36: printf("MVI    M, %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x36:{
+      printf("MVI    M, %02x", currOp[1]);
+      currState->memory[((short)currState->h<< 8 | currState->l)] = currOp[1];;
+      nextPC = (currState->pc) + 2;
+      break;
+    }
     case 0x37: printf("STC"); unimplementedInstruction(currState); break;
     case 0x38: printf("NOP"); unimplementedInstruction(currState); break;
     case 0x39: printf("DAD    SP"); unimplementedInstruction(currState); break;
-    case 0x3a: printf("LDA    0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x3a: printf("LDA    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0x3b: printf("DCX    SP"); unimplementedInstruction(currState); break;
     case 0x3c: printf("INR    A"); unimplementedInstruction(currState); break;
     case 0x3d: printf("DCR    A"); unimplementedInstruction(currState); break;
-    case 0x3e: printf("MVI    A, %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0x3e: printf("MVI    A, %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0x3f: printf("CMC"); unimplementedInstruction(currState); break;
 
     case 0x40: printf("MOV    B,B"); unimplementedInstruction(currState); break;
@@ -184,13 +262,28 @@ int emuOp(struct State8080* currState){
     case 0x73: printf("MOV    M,E"); unimplementedInstruction(currState); break;
     case 0x74: printf("MOV    M,H"); unimplementedInstruction(currState); break;
     case 0x75: printf("MOV    M,L"); unimplementedInstruction(currState); break;
-    case 0x76: printf("HLT"); unimplementedInstruction(currState); break;
-    case 0x77: printf("MOV    M,A"); unimplementedInstruction(currState); break;
+    case 0x76:{
+      printf("HLT");
+      unimplementedInstruction(currState);
+      break;
+    }
+    case 0x77:{
+      printf("MOV    M,A");
+      //move value in register A into the memory address stored in HL
+      currState->memory[(short)currState->h << 8 | currState->l] = currState->a;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x78: printf("MOV    A,B"); unimplementedInstruction(currState); break;
     case 0x79: printf("MOV    A,C"); unimplementedInstruction(currState); break;
     case 0x7a: printf("MOV    A,D"); unimplementedInstruction(currState); break;
     case 0x7b: printf("MOV    A,E"); unimplementedInstruction(currState); break;
-    case 0x7c: printf("MOV    A,A"); unimplementedInstruction(currState); break;
+    case 0x7c: {
+      printf("MOV    A,H");
+      currState->a = currState->h;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x7d: printf("MOV    A,L"); unimplementedInstruction(currState); break;
     case 0x7e: printf("MOV    A,M"); unimplementedInstruction(currState); break;
     case 0x7f: printf("MOV    A,A"); unimplementedInstruction(currState); break;
@@ -265,79 +358,117 @@ int emuOp(struct State8080* currState){
 
     case 0xc0: printf("RNZ"); unimplementedInstruction(currState); break;
     case 0xc1: printf("POP    B"); unimplementedInstruction(currState); break;
-    case 0xc2: printf("JNZ    0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
-    case 0xc3:{
-      printf("JMP    0x%02x%02x\n", currState->memory[currState->pc+2], currState->memory[currState->pc+1]);
-      nextPC = (((short)currState->memory[(currState->pc)+2])) << 8 | currState->memory[(currState->pc)+1];
-      printf("Jumping to 0x%04x\n",nextPC);
+    case 0xc2: {
+      printf("JNZ    0x%02x%02x", currOp[2], currOp[1]);
+      if(currState->cc.z == 0){
+        nextPC = ((short)currOp[2]<<8|currOp[1]);
+        break;
+      }
+      nextPC = currState->pc+2;
       break;
     }
-    case 0xc4: printf("CNZ    0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xc3:{
+      printf("JMP    0x%02x%02x", currState->memory[currState->pc+2], currState->memory[currState->pc+1]);
+      nextPC = ((short)currOp[2] << 8 | currOp[1]);
+      break;
+    }
+    case 0xc4: printf("CNZ    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xc5: printf("PUSH   B"); unimplementedInstruction(currState); break;
-    case 0xc6: printf("ADI    %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xc6: printf("ADI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xc7: printf("RST    0"); unimplementedInstruction(currState); break;
     case 0xc8: printf("RZ"); unimplementedInstruction(currState); break;
-    case 0xc9: printf("RET"); unimplementedInstruction(currState); break;
-    case 0xca: printf("JZ     0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xc9: {
+      printf("RET");
+      nextPC = ((short)currState->memory[currState->sp]<<8|currState->memory[currState->sp+1]);
+      nextPC = nextPC+3;
+      currState->sp = currState->sp+2;
+      break;
+    }
+    case 0xca: printf("JZ     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xcb: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0xcc: printf("CZ     0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
-    case 0xcd: printf("CALL   0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
-    case 0xce: printf("ACI    %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xcc: printf("CZ     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
+    case 0xcd: {
+      printf("CALL   0x%02x%02x", currOp[2], currOp[1]);
+      //add program counter to the stack
+      currState->memory[currState->sp-1]=((char*)&currState->pc)[0];
+      currState->memory[currState->sp-2]=((char*)&currState->pc)[1];
+      currState->sp = currState->sp-2;
+
+      //The above code (specifically  "((char*)&currState->pc)[0]") is somewhat unintuitive
+      //As an explanation: to seperate the 16 bit program counter value into two bits, I cast it to a
+      //character pointer (and thus a character array) and index into it to get the lower and upper bits
+      //that are then written to the stack.
+
+      //move to address being called
+      nextPC = (((short)currState->memory[(currState->pc)+2])) << 8 | currState->memory[(currState->pc)+1];
+
+      break;
+    }
+    case 0xce: printf("ACI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xcf: printf("RST    1"); unimplementedInstruction(currState); break;
 
     case 0xd0: printf("RNC"); unimplementedInstruction(currState); break;
     case 0xd1: printf("POP    C"); unimplementedInstruction(currState); break;
-    case 0xd2: printf("JNC    0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
-    case 0xd3: printf("OUT    %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
-    case 0xd4: printf("CNC    0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xd2: printf("JNC    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
+    case 0xd3: printf("OUT    %02x", currOp[1]); unimplementedInstruction(currState); break;
+    case 0xd4: printf("CNC    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xd5: printf("PUSH   D"); unimplementedInstruction(currState); break;
-    case 0xd6: printf("SUI    %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xd6: printf("SUI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xd7: printf("RST    2"); unimplementedInstruction(currState); break;
     case 0xd8: printf("RC"); unimplementedInstruction(currState); break;
     case 0xd9: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0xda: printf("JC     0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
-    case 0xdb: printf("IN     %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
-    case 0xdc: printf("CC     0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xda: printf("JC     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
+    case 0xdb: printf("IN     %02x", currOp[1]); unimplementedInstruction(currState); break;
+    case 0xdc: printf("CC     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xdd: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0xde: printf("SBI    %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xde: printf("SBI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xdf: printf("RST    3"); unimplementedInstruction(currState); break;
 
     case 0xe0: printf("RPO"); unimplementedInstruction(currState); break;
     case 0xe1: printf("POP    H"); unimplementedInstruction(currState); break;
-    case 0xe2: printf("JPO    0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xe2: printf("JPO    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xe3: printf("XTHL    "); unimplementedInstruction(currState); break;
-    case 0xe4: printf("CPO    0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xe4: printf("CPO    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xe5: printf("PUSH   H"); unimplementedInstruction(currState); break;
-    case 0xe6: printf("ANI    %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xe6: printf("ANI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xe7: printf("RST    4"); unimplementedInstruction(currState); break;
     case 0xe8: printf("RPE     "); unimplementedInstruction(currState); break;
     case 0xe9: printf("PCHL    "); unimplementedInstruction(currState); break;
-    case 0xea: printf("JPE    0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xea: printf("JPE    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xeb: printf("XCHG    "); unimplementedInstruction(currState); break;
-    case 0xec: printf("CPE    0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xec: printf("CPE    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xed: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0xee: printf("XRI    %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xee: printf("XRI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xef: printf("RST    5"); unimplementedInstruction(currState); break;
 
     case 0xf0: printf("RP"); unimplementedInstruction(currState); break;
     case 0xf1: printf("POP PSW"); unimplementedInstruction(currState); break;
-    case 0xf2: printf("JP     0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xf2: printf("JP     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xf3: printf("DI"); unimplementedInstruction(currState); break;
-    case 0xf4: printf("CP     0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xf4: printf("CP     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xf5: printf("PUSHPSW"); unimplementedInstruction(currState); break;
-    case 0xf6: printf("ORI    %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xf6: printf("ORI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xf7: printf("RST    6"); unimplementedInstruction(currState); break;
     case 0xf8: printf("RM"); unimplementedInstruction(currState); break;
     case 0xf9: printf("SPHL"); unimplementedInstruction(currState); break;
-    case 0xfa: printf("JM     0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xfa: printf("JM     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xfb: printf("EI"); unimplementedInstruction(currState); break;
-    case 0xfc: printf("CM     0x%02x%02x", currOp[currState->pc+2], currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xfc: printf("CM     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xfd: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0xfe: printf("CPI    %02x", currOp[currState->pc+1]); unimplementedInstruction(currState); break;
+    case 0xfe: {
+      printf("CPI    %02x", currOp[1]);
+      uint8_t temp = currState->a-currOp[1];
+      currState->cc.z = (temp == 0);
+			currState->cc.s = (0x80 == (temp & 0x80));
+			currState->cc.p = checkParity(temp);
+			currState->cc.cy = (currState->a < currOp[1]);
+      nextPC = currState->pc + 2;
+      break;
+    }
     case 0xff: printf("RST    7"); unimplementedInstruction(currState); break;
   }
+
   printf("\n\n");
-  sleep(1);
   return nextPC;
 }
 
@@ -393,9 +524,14 @@ int main(int argc, char *argv[]){
 
   //Execute the program by reading and executing instruction at a time
   int pc = 0;
+  int numSteps = 0;
   printf("Loaded everything into memory!\n");
   while(1){
+    printf("Number of steps: %i\n",numSteps);
     currState->pc = emuOp(currState);
+    numSteps++;
+    //if (numSteps%100 == 0)
+      //getchar();
   }
 
   return 0;

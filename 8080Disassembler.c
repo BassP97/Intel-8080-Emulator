@@ -43,11 +43,11 @@ int disas8080(unsigned char *codeBuffer, int currPC){
 
     case 0x20: printf("NOP"); break;
     case 0x21: printf("LXI    H, 0x%02x%02x ", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes = 3; break;
-    case 0x22: printf("STAX   D"); break;
-    case 0x23: printf("INX    D"); break;
-    case 0x24: printf("INR    D"); break;
-    case 0x25: printf("DCR    D"); break;
-    case 0x26: printf("MVI    D, %02x", codeBuffer[currPC+1]); opBytes = 2; break;
+    case 0x22: printf("SHLD   0x%02x%02x ", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes = 3; break;
+    case 0x23: printf("INX    H"); break;
+    case 0x24: printf("INR    H"); break;
+    case 0x25: printf("DCR    H"); break;
+    case 0x26: printf("MVI    H, %02x", currOp[1]); break;
     case 0x27: printf("DAA    "); break;
     case 0x28: printf("NOP"); break;
     case 0x29: printf("DAD    H"); break;
