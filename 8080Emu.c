@@ -28,7 +28,7 @@ typedef struct State8080 {
     uint8_t    int_enable;
 } State8080;
 
-void unimplementedInstruction(struct State8080* state){
+void unimplementedInstruction(struct State8080* currState){
   printf ("\nError: Unimplemented instruction\n");
   exit(1);
 }
@@ -51,7 +51,7 @@ int emuOp(struct State8080* currState){
     exit(1);
   }
   unsigned char* currOp = &currState->memory[currState->pc];
-  printf("0x%02x%02x%02x at current PC 0x%04x\nCurrent Processor State:\n", currOp[0],currOp[1],currOp[2], currState->pc);
+  printf("0x%02x%02x%02x at current PC 0x%04x\nCurrent Processor currState:\n", currOp[0],currOp[1],currOp[2], currState->pc);
   printf(" C=%d    P=%d    S=%d    Z=%d\n", currState->cc.cy, currState->cc.p,
         currState->cc.s, currState->cc.z);
   printf(" A:0x%02x B:0x%02x C:0x%02x D:0x%02x E:0x%02x H:0x%02x L:0x%02x SP:0x%04x\n",
@@ -71,6 +71,7 @@ int emuOp(struct State8080* currState){
       currState->b = currOp[2];
       currState->c = currOp[1];
 			nextPC = currState->pc+3;
+      break;
     }
     case 0x02: printf("STAX   B"); unimplementedInstruction(currState); break;
     case 0x03: printf("INX    B"); unimplementedInstruction(currState); break;
@@ -101,6 +102,7 @@ int emuOp(struct State8080* currState){
       currState->h = (res & 0xff00) >> 8;
       currState->l = res & 0xff;
       currState->cc.cy = ((res & 0xffff0000) > 0);
+      nextPC = currState->pc+1;
       break;
     }
     case 0x0a: printf("LDAX   B"); unimplementedInstruction(currState); break;
@@ -109,6 +111,9 @@ int emuOp(struct State8080* currState){
     case 0x0d: printf("DCR    C"); unimplementedInstruction(currState); break;
     case 0x0e: {
       printf("MVI    C, %02x", currOp[1]);
+      currState->c = currOp[1];
+      nextPC = currState->pc + 2;
+      break;
     }
     case 0x0f: printf("RRC"); unimplementedInstruction(currState); break;
 
@@ -135,7 +140,17 @@ int emuOp(struct State8080* currState){
     case 0x16: printf("MVI    D, %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0x17: printf("RAL"); unimplementedInstruction(currState); break;
     case 0x18: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0x19: printf("DAD    D"); unimplementedInstruction(currState); break;
+    case 0x19: {
+      printf("DAD    D");
+			uint32_t hl = ((short)currState->h << 8) | (currState->l);
+			uint32_t de = ((short)currState->d << 8) | (currState->e);
+			uint32_t temp = hl + de;
+			currState->h = (temp & 0xff00) >> 8;
+			currState->l = temp & 0xff;
+			currState->cc.cy = ((temp & 0xffff0000) != 0);
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x1a:{
       printf("LDAX   D");
       currState->a = currState->memory[((short)currState->d) << 8 | currState->e];
@@ -167,10 +182,24 @@ int emuOp(struct State8080* currState){
     }
     case 0x24: printf("INR    H"); unimplementedInstruction(currState); break;
     case 0x25: printf("DCR    H"); unimplementedInstruction(currState); break;
-    case 0x26: printf("MVI    H, %02x", currOp[1]); unimplementedInstruction(currState); break;
+    case 0x26: {
+      printf("MVI    H, %02x", currOp[1]);
+      currState->h = currOp[1];
+			nextPC = currState->pc+2;
+      break;
+    }
     case 0x27: printf("DAA    "); unimplementedInstruction(currState); break;
     case 0x28: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0x29: printf("DAD    H"); unimplementedInstruction(currState); break;
+    case 0x29: {
+      printf("DAD    H");
+			uint32_t hl = ((short)currState->h << 8) | (currState->l);
+			uint32_t temp = hl + hl;
+			currState->h = (temp & 0xff00) >> 8;
+			currState->l = temp & 0xff;
+			currState->cc.cy = ((temp & 0xffff0000) != 0);
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x2a: printf("LHLD   %02x, %02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0x2b: printf("DCX    H"); unimplementedInstruction(currState); break;
     case 0x2c: printf("INR    L"); unimplementedInstruction(currState); break;
@@ -254,8 +283,12 @@ int emuOp(struct State8080* currState){
     case 0x6c: printf("MOV    L,H"); unimplementedInstruction(currState); break;
     case 0x6d: printf("MOV    L,L"); unimplementedInstruction(currState); break;
     case 0x6e: printf("MOV    L,M"); unimplementedInstruction(currState); break;
-    case 0x6f: printf("MOV    L,A"); unimplementedInstruction(currState); break;
-
+    case 0x6f:{
+      printf("MOV    L,A");
+      currState->l = currState->a;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x70: printf("MOV    M,B"); unimplementedInstruction(currState); break;
     case 0x71: printf("MOV    M,C"); unimplementedInstruction(currState); break;
     case 0x72: printf("MOV    M,D"); unimplementedInstruction(currState); break;
@@ -357,14 +390,21 @@ int emuOp(struct State8080* currState){
     case 0xbf: printf("CMP    A"); unimplementedInstruction(currState); break;
 
     case 0xc0: printf("RNZ"); unimplementedInstruction(currState); break;
-    case 0xc1: printf("POP    B"); unimplementedInstruction(currState); break;
+    case 0xc1: {
+      printf("POP    B");
+      currState->c = currState->memory[currState->sp];
+			currState->b = currState->memory[currState->sp+1];
+      currState->sp += 2;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0xc2: {
       printf("JNZ    0x%02x%02x", currOp[2], currOp[1]);
       if(currState->cc.z == 0){
         nextPC = ((short)currOp[2]<<8|currOp[1]);
         break;
       }
-      nextPC = currState->pc+2;
+      nextPC = currState->pc+3;
       break;
     }
     case 0xc3:{
@@ -373,7 +413,14 @@ int emuOp(struct State8080* currState){
       break;
     }
     case 0xc4: printf("CNZ    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
-    case 0xc5: printf("PUSH   B"); unimplementedInstruction(currState); break;
+    case 0xc5: {
+      printf("PUSH   B");
+      currState->memory[currState->sp-1] = currState->b;
+      currState->memory[currState->sp-2] = currState->c;
+      currState->sp = currState->sp - 2;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0xc6: printf("ADI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xc7: printf("RST    0"); unimplementedInstruction(currState); break;
     case 0xc8: printf("RZ"); unimplementedInstruction(currState); break;
@@ -410,9 +457,22 @@ int emuOp(struct State8080* currState){
     case 0xd0: printf("RNC"); unimplementedInstruction(currState); break;
     case 0xd1: printf("POP    C"); unimplementedInstruction(currState); break;
     case 0xd2: printf("JNC    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
-    case 0xd3: printf("OUT    %02x", currOp[1]); unimplementedInstruction(currState); break;
+    case 0xd3: {
+      //placeholder
+      printf("OUT    %02x", currOp[1]);
+      nextPC = currState->pc+2;
+      break;
+    }
     case 0xd4: printf("CNC    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
-    case 0xd5: printf("PUSH   D"); unimplementedInstruction(currState); break;
+    case 0xd5:{
+      printf("PUSH   D\n");
+			currState->memory[currState->sp-1] = currState->d;
+			currState->memory[currState->sp-2] = currState->e;
+			currState->sp = currState->sp - 2;
+      nextPC = currState->pc+1;
+      break;
+    }
+
     case 0xd6: printf("SUI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xd7: printf("RST    2"); unimplementedInstruction(currState); break;
     case 0xd8: printf("RC"); unimplementedInstruction(currState); break;
@@ -425,17 +485,41 @@ int emuOp(struct State8080* currState){
     case 0xdf: printf("RST    3"); unimplementedInstruction(currState); break;
 
     case 0xe0: printf("RPO"); unimplementedInstruction(currState); break;
-    case 0xe1: printf("POP    H"); unimplementedInstruction(currState); break;
+    case 0xe1: {
+      printf("POP    H");
+			currState->l = currState->memory[currState->sp];
+			currState->h = currState->memory[currState->sp+1];
+			currState->sp += 2;
+      nextPC = currState->pc + 1;
+      break;
+    }
     case 0xe2: printf("JPO    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xe3: printf("XTHL    "); unimplementedInstruction(currState); break;
     case 0xe4: printf("CPO    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
-    case 0xe5: printf("PUSH   H"); unimplementedInstruction(currState); break;
+    case 0xe5: {
+      printf("PUSH   H");
+      currState->memory[currState->sp-1] = currState->h;
+      currState->memory[currState->sp-2] = currState->l;
+      currState->sp = currState->sp - 2;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0xe6: printf("ANI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xe7: printf("RST    4"); unimplementedInstruction(currState); break;
     case 0xe8: printf("RPE     "); unimplementedInstruction(currState); break;
     case 0xe9: printf("PCHL    "); unimplementedInstruction(currState); break;
     case 0xea: printf("JPE    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
-    case 0xeb: printf("XCHG    "); unimplementedInstruction(currState); break;
+    case 0xeb: {
+      printf("XCHG    ");
+			uint8_t temp1 = currState->d;
+			uint8_t temp2 = currState->e;
+			currState->d = currState->h;
+			currState->e = currState->l;
+			currState->h = temp1;
+			currState->l = temp2;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0xec: printf("CPE    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xed: printf("NOP"); unimplementedInstruction(currState); break;
     case 0xee: printf("XRI    %02x", currOp[1]); unimplementedInstruction(currState); break;
@@ -475,12 +559,12 @@ int emuOp(struct State8080* currState){
 
 
 struct State8080* Init8080(){
-	struct State8080* state = calloc(1,sizeof(struct State8080));
-	state->memory = malloc(0x10000);  //16K
-	return state;
+	struct State8080* currState = calloc(1,sizeof(struct State8080));
+	currState->memory = malloc(0x10000);  //16K
+	return currState;
 }
 
-void fileToMem(struct State8080* state, char* filename, uint32_t offset){
+void fileToMem(struct State8080* currState, char* filename, uint32_t offset){
   printf("Loading %s into memory\n", filename);
   FILE *f= fopen(filename, "rb");
 	if (f==NULL){
@@ -493,7 +577,7 @@ void fileToMem(struct State8080* state, char* filename, uint32_t offset){
 	fseek(f, 0L, SEEK_SET);
 
   //Read the file into program memory
-	uint8_t *buffer = &state->memory[offset];
+	uint8_t *buffer = &currState->memory[offset];
 	fread(buffer, fsize, 1, f);
 	fclose(f);
 }
