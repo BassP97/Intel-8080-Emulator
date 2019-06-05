@@ -229,7 +229,7 @@ int disas8080(unsigned char *codeBuffer, int currPC){
     case 0xcf: printf("RST    1"); break;
 
     case 0xd0: printf("RNC"); break;
-    case 0xd1: printf("POP    C"); break;
+    case 0xd1: printf("POP    D"); break;
     case 0xd2: printf("JNC    0x%02x%02x", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes = 3; break;
     case 0xd3: printf("OUT    %02x", codeBuffer[currPC+1]); opBytes = 2; break;
     case 0xd4: printf("CNC    0x%02x%02x", codeBuffer[currPC+2], codeBuffer[currPC+1]); opBytes = 3; break;

@@ -455,7 +455,7 @@ int emuOp(struct State8080* currState){
     case 0xcf: printf("RST    1"); unimplementedInstruction(currState); break;
 
     case 0xd0: printf("RNC"); unimplementedInstruction(currState); break;
-    case 0xd1: printf("POP    C"); unimplementedInstruction(currState); break;
+    case 0xd1: printf("POP    D"); unimplementedInstruction(currState); break;
     case 0xd2: printf("JNC    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xd3: {
       //placeholder
@@ -587,7 +587,7 @@ int main(int argc, char *argv[]){
   //Initialize our 8080 cpu with 16k of memory
   struct State8080* currState = Init8080();
   currState->pc = 0;
-  char def[] = "default";
+  char def[] = "def";
 
   //Open all four files and write them to the appropriate locations in memory
   //Arguments for space invaders should be in order: .h, .g, .f, .e
@@ -599,6 +599,10 @@ int main(int argc, char *argv[]){
   	fileToMem(currState, "invaders.f", 0x1000);
     fileToMem(currState, "invaders.e", 0x1800);
   }else{
+    if (argc!=5){
+      fprintf(stderr, "Please provide four arguments (your .h, .g, .f, and .e files) or execute the default, space invaders program by providing one argument, <def>\n");
+      exit(0);
+    }
     fileToMem(currState, argv[1], 0);
   	fileToMem(currState, argv[2], 0x800);
   	fileToMem(currState, argv[3], 0x1000);
