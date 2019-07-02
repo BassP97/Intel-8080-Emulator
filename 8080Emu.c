@@ -28,6 +28,14 @@ typedef struct State8080 {
     uint8_t    int_enable;
 } State8080;
 
+typedef struct shiftRegs{
+  uint8_t shift1;
+  uint8_t shift0;
+  uint8_t shiftOffset;
+} shiftRegs;
+
+
+
 void unimplementedInstruction(struct State8080* currState){
   printf ("\nError: Unimplemented instruction\n");
   exit(1);
@@ -45,11 +53,8 @@ int checkParity(uint8_t x){
   return 0;
 }
 
-
 int emuOp(struct State8080* currState){
-  if (currState->pc == 0x0add){
-    exit(1);
-  }
+
   unsigned char* currOp = &currState->memory[currState->pc];
   printf("0x%02x%02x%02x at current PC 0x%04x\nCurrent Processor currState:\n", currOp[0],currOp[1],currOp[2], currState->pc);
   printf(" C=%d    P=%d    S=%d    Z=%d\n", currState->cc.cy, currState->cc.p,
@@ -78,11 +83,11 @@ int emuOp(struct State8080* currState){
     case 0x04: printf("INR    B"); unimplementedInstruction(currState); break;
     case 0x05:{
       printf("DCR    B");
-			currState->b = currState->b - 1;
-			currState->cc.z = (currState->b == 0);
-			currState->cc.s = (0x80 == (currState->b & 0x80));
-      //TODO: double check that checkParity works correctly
-			currState->cc.p = checkParity(currState->b);
+      uint8_t temp = currState->b-1;
+			currState->cc.z = (temp == 0);
+			currState->cc.s = (0x80 == (temp & 0x80));
+			currState->cc.p = checkParity(temp);
+      currState->b = currState->b-1;
       nextPC = currState->pc+1;
       break;
 		}
@@ -98,25 +103,40 @@ int emuOp(struct State8080* currState){
       printf("DAD    B");
       uint32_t hl = ((currState->h << 8) | currState->l);
       uint32_t bc = ((currState->b << 8) | currState->c);
-      uint32_t res = hl + bc;
-      currState->h = (res & 0xff00) >> 8;
-      currState->l = res & 0xff;
-      currState->cc.cy = ((res & 0xffff0000) > 0);
+      uint32_t temp = hl + bc;
+      currState->h = (temp & 0xff00) >> 8;
+      currState->l = temp & 0xff;
+      currState->cc.cy = ((temp & 0xffff0000) > 0);
       nextPC = currState->pc+1;
       break;
     }
     case 0x0a: printf("LDAX   B"); unimplementedInstruction(currState); break;
     case 0x0b: printf("DCX    B"); unimplementedInstruction(currState); break;
     case 0x0c: printf("INR    C"); unimplementedInstruction(currState); break;
-    case 0x0d: printf("DCR    C"); unimplementedInstruction(currState); break;
+    case 0x0d: {
+      printf("DCR    C");
+			uint8_t temp = currState->c - 1;
+			currState->cc.z = (temp == 0);
+			currState->cc.s = (0x80 == (temp & 0x80));
+			currState->cc.p = checkParity(temp);
+			currState->c = temp;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x0e: {
       printf("MVI    C, %02x", currOp[1]);
       currState->c = currOp[1];
       nextPC = currState->pc + 2;
       break;
     }
-    case 0x0f: printf("RRC"); unimplementedInstruction(currState); break;
-
+    case 0x0f: {
+      printf("RRC");
+			uint8_t temp = currState->a;
+			currState->a = ((temp & 1) << 7) | (temp >> 1);
+			currState->cc.cy = (1 == (temp&1));
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x10: printf("NOP"); unimplementedInstruction(currState); break;
     case 0x11:{
       printf("LXI    D, 0x%02x%02x", currOp[2], currOp[1]);
@@ -153,7 +173,7 @@ int emuOp(struct State8080* currState){
     }
     case 0x1a:{
       printf("LDAX   D");
-      currState->a = currState->memory[((short)currState->d) << 8 | currState->e];
+      currState->a = currState->memory[(currState->d) << 8 | currState->e];
       nextPC = (currState->pc) + 1;
       break;
     }
@@ -192,7 +212,7 @@ int emuOp(struct State8080* currState){
     case 0x28: printf("NOP"); unimplementedInstruction(currState); break;
     case 0x29: {
       printf("DAD    H");
-			uint32_t hl = ((short)currState->h << 8) | (currState->l);
+			uint32_t hl = (currState->h << 8) | (currState->l);
 			uint32_t temp = hl + hl;
 			currState->h = (temp & 0xff00) >> 8;
 			currState->l = temp & 0xff;
@@ -210,28 +230,54 @@ int emuOp(struct State8080* currState){
     case 0x30: printf("NOP"); unimplementedInstruction(currState); break;
     case 0x31:{
       printf("LXI    SP, 0x%02x %02x", currState->memory[currState->pc+2], currState->memory[currState->pc+1]);
-      currState->sp =((short)currOp[2] << 8 | currOp[1]);
+      currState->sp =(currOp[2] << 8 | currOp[1]);
       nextPC = (currState->pc) + 3;
       break;
     }
-    case 0x32: printf("STA    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
+    case 0x32: {
+      printf("STA    0x%02x%02x", currOp[2], currOp[1]);
+			uint16_t memLoc = (currOp[2]<<8) | (currOp[1]);
+			currState->memory[memLoc] = currState->a;
+			nextPC = currState->pc + 3;
+      break;
+    }
     case 0x33: printf("INX    SP"); unimplementedInstruction(currState); break;
     case 0x34: printf("INR    M"); unimplementedInstruction(currState); break;
     case 0x35: printf("DCR    M"); unimplementedInstruction(currState); break;
     case 0x36:{
       printf("MVI    M, %02x", currOp[1]);
-      currState->memory[((short)currState->h<< 8 | currState->l)] = currOp[1];;
+      uint16_t memLoc = (currState->h<<8) | (currState->l);
+      currState->memory[memLoc] = currOp[1];
       nextPC = (currState->pc) + 2;
       break;
     }
     case 0x37: printf("STC"); unimplementedInstruction(currState); break;
     case 0x38: printf("NOP"); unimplementedInstruction(currState); break;
     case 0x39: printf("DAD    SP"); unimplementedInstruction(currState); break;
-    case 0x3a: printf("LDA    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
+    case 0x3a: {
+      printf("LDA    0x%02x%02x", currOp[2], currOp[1]);
+			uint16_t memLoc = (currOp[2]<<8) | (currOp[1]);
+			currState->a = currState->memory[memLoc];
+			nextPC = currState->pc+3;
+      break;
+    }
     case 0x3b: printf("DCX    SP"); unimplementedInstruction(currState); break;
     case 0x3c: printf("INR    A"); unimplementedInstruction(currState); break;
-    case 0x3d: printf("DCR    A"); unimplementedInstruction(currState); break;
-    case 0x3e: printf("MVI    A, %02x", currOp[1]); unimplementedInstruction(currState); break;
+    case 0x3d: {
+      printf("DCR    A");
+      currState->a = currState->a - 1;
+			currState->cc.z = (currState->a == 0);
+			currState->cc.s = (0x80 == (currState->a & 0x80));
+			currState->cc.p = checkParity(currState->a);
+      nextPC = currState->pc+1;
+      break;
+    }
+    case 0x3e: {
+      printf("MVI    A, %02x", currOp[1]);
+      currState->a = currOp[1];
+      nextPC = (currState->pc) + 2;
+      break;
+    }
     case 0x3f: printf("CMC"); unimplementedInstruction(currState); break;
 
     case 0x40: printf("MOV    B,B"); unimplementedInstruction(currState); break;
@@ -257,7 +303,13 @@ int emuOp(struct State8080* currState){
     case 0x53: printf("MOV    D,E"); unimplementedInstruction(currState); break;
     case 0x54: printf("MOV    D,H"); unimplementedInstruction(currState); break;
     case 0x55: printf("MOV    D,L"); unimplementedInstruction(currState); break;
-    case 0x56: printf("MOV    D,M"); unimplementedInstruction(currState); break;
+    case 0x56: {
+      printf("MOV    D,M");
+			uint16_t memLoc = (currState->h<<8) | (currState->l);
+			currState->d = currState->memory[memLoc];
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x57: printf("MOV    D,A"); unimplementedInstruction(currState); break;
     case 0x58: printf("MOV    E,B"); unimplementedInstruction(currState); break;
     case 0x59: printf("MOV    E,C"); unimplementedInstruction(currState); break;
@@ -265,7 +317,13 @@ int emuOp(struct State8080* currState){
     case 0x5b: printf("MOV    E,E"); unimplementedInstruction(currState); break;
     case 0x5c: printf("MOV    E,H"); unimplementedInstruction(currState); break;
     case 0x5d: printf("MOV    E,L"); unimplementedInstruction(currState); break;
-    case 0x5e: printf("MOV    E,M"); unimplementedInstruction(currState); break;
+    case 0x5e: {
+      printf("MOV    E,M");
+			uint16_t memLoc = ((short)currState->h<<8) | (currState->l);
+			currState->e = currState->memory[memLoc];
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x5f: printf("MOV    E,A"); unimplementedInstruction(currState); break;
 
     case 0x60: printf("MOV    H,d"); unimplementedInstruction(currState); break;
@@ -274,7 +332,13 @@ int emuOp(struct State8080* currState){
     case 0x63: printf("MOV    H,E"); unimplementedInstruction(currState); break;
     case 0x64: printf("MOV    H,H"); unimplementedInstruction(currState); break;
     case 0x65: printf("MOV    H,L"); unimplementedInstruction(currState); break;
-    case 0x66: printf("MOV    H,M"); unimplementedInstruction(currState); break;
+    case 0x66: {
+      printf("MOV    H,M");
+			uint16_t memLoc = (currState->h<<8) | (currState->l);
+			currState->h = currState->memory[memLoc];
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x67: printf("MOV    H,A"); unimplementedInstruction(currState); break;
     case 0x68: printf("MOV    L,d"); unimplementedInstruction(currState); break;
     case 0x69: printf("MOV    L,C"); unimplementedInstruction(currState); break;
@@ -303,22 +367,25 @@ int emuOp(struct State8080* currState){
     case 0x77:{
       printf("MOV    M,A");
       //move value in register A into the memory address stored in HL
-      currState->memory[(short)currState->h << 8 | currState->l] = currState->a;
+      uint16_t memLoc = (currState->h << 8) | (currState->l);
+      currState->memory[memLoc] = currState->a;
       nextPC = currState->pc+1;
       break;
     }
     case 0x78: printf("MOV    A,B"); unimplementedInstruction(currState); break;
     case 0x79: printf("MOV    A,C"); unimplementedInstruction(currState); break;
-    case 0x7a: printf("MOV    A,D"); unimplementedInstruction(currState); break;
-    case 0x7b: printf("MOV    A,E"); unimplementedInstruction(currState); break;
-    case 0x7c: {
-      printf("MOV    A,H");
-      currState->a = currState->h;
+    case 0x7a: printf("MOV    A,D"); currState->a  = currState->d; nextPC = currState->pc+1; break;
+    case 0x7b: printf("MOV    A,E"); currState->a  = currState->e; nextPC = currState->pc+1;  break;
+    case 0x7c: printf("MOV    A,H"); currState->a = currState->h; nextPC = currState->pc+1; break;
+    case 0x7d: printf("MOV    A,L"); currState->a = currState->l; nextPC = currState->pc+1; break;
+
+    case 0x7e: {
+      printf("MOV    A,M");
+			uint16_t memLoc = (currState->h<<8) | (currState->l);
+			currState->a = currState->memory[memLoc];
       nextPC = currState->pc+1;
       break;
     }
-    case 0x7d: printf("MOV    A,L"); unimplementedInstruction(currState); break;
-    case 0x7e: printf("MOV    A,M"); unimplementedInstruction(currState); break;
     case 0x7f: printf("MOV    A,A"); unimplementedInstruction(currState); break;
 
     case 0x80: printf("ADD    B"); unimplementedInstruction(currState); break;
@@ -362,7 +429,16 @@ int emuOp(struct State8080* currState){
     case 0xa4: printf("ANA    H"); unimplementedInstruction(currState); break;
     case 0xa5: printf("ANA    L"); unimplementedInstruction(currState); break;
     case 0xa6: printf("ANA    E"); unimplementedInstruction(currState); break;
-    case 0xa7: printf("ANA    A"); unimplementedInstruction(currState); break;
+    case 0xa7: {
+      printf("ANA    A");
+      currState->a = currState->a & currState->a;
+      currState->cc.cy = currState->cc.ac = 0;
+	    currState->cc.z = (currState->a == 0);
+	    currState->cc.s = (0x80 == (currState->a & 0x80));
+      currState->cc.p = checkParity(currState->a);
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0xa8: printf("XRA    B"); unimplementedInstruction(currState); break;
     case 0xa9: printf("XRA    C"); unimplementedInstruction(currState); break;
     case 0xaa: printf("XRA    D"); unimplementedInstruction(currState); break;
@@ -370,8 +446,16 @@ int emuOp(struct State8080* currState){
     case 0xac: printf("XRA    A"); unimplementedInstruction(currState); break;
     case 0xad: printf("XRA    L"); unimplementedInstruction(currState); break;
     case 0xae: printf("XRA    M"); unimplementedInstruction(currState); break;
-    case 0xaf: printf("XRA    A"); unimplementedInstruction(currState); break;
-
+    case 0xaf: {
+      printf("XRA    A");
+      currState->a = currState->a ^ currState->a;
+      currState->cc.cy = currState->cc.ac = 0;
+	    currState->cc.z = (currState->a == 0);
+	    currState->cc.s = (0x80 == (currState->a & 0x80));
+      currState->cc.p = checkParity(currState->a);
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0xb0: printf("ORA    B"); unimplementedInstruction(currState); break;
     case 0xb1: printf("ORA    C"); unimplementedInstruction(currState); break;
     case 0xb2: printf("ORA    D"); unimplementedInstruction(currState); break;
@@ -402,9 +486,9 @@ int emuOp(struct State8080* currState){
       printf("JNZ    0x%02x%02x", currOp[2], currOp[1]);
       if(currState->cc.z == 0){
         nextPC = ((short)currOp[2]<<8|currOp[1]);
-        break;
+      }else{
+        nextPC = currState->pc+3;
       }
-      nextPC = currState->pc+3;
       break;
     }
     case 0xc3:{
@@ -421,7 +505,17 @@ int emuOp(struct State8080* currState){
       nextPC = currState->pc+1;
       break;
     }
-    case 0xc6: printf("ADI    %02x", currOp[1]); unimplementedInstruction(currState); break;
+    case 0xc6: {
+      printf("ADI    %02x", currOp[1]);
+      uint16_t temp = (short) currState->a + (short) currOp[1];
+			currState->cc.z = ((temp & 0xff) == 0);
+			currState->cc.s = (0x80 == (temp & 0x80));
+			currState->cc.p = checkParity(temp&0xff);
+			currState->cc.cy = (temp > 0xff);
+			currState->a = (uint8_t) temp;
+			nextPC = currState->pc+2;
+      break;
+    }
     case 0xc7: printf("RST    0"); unimplementedInstruction(currState); break;
     case 0xc8: printf("RZ"); unimplementedInstruction(currState); break;
     case 0xc9: {
@@ -455,7 +549,14 @@ int emuOp(struct State8080* currState){
     case 0xcf: printf("RST    1"); unimplementedInstruction(currState); break;
 
     case 0xd0: printf("RNC"); unimplementedInstruction(currState); break;
-    case 0xd1: printf("POP    D"); unimplementedInstruction(currState); break;
+    case 0xd1:{
+      printf("POP    D");
+      currState->e = currState->memory[currState->sp];
+			currState->d = currState->memory[currState->sp+1];
+      currState->sp += 2;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0xd2: printf("JNC    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xd3: {
       //placeholder
@@ -477,8 +578,21 @@ int emuOp(struct State8080* currState){
     case 0xd7: printf("RST    2"); unimplementedInstruction(currState); break;
     case 0xd8: printf("RC"); unimplementedInstruction(currState); break;
     case 0xd9: printf("NOP"); unimplementedInstruction(currState); break;
-    case 0xda: printf("JC     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
-    case 0xdb: printf("IN     %02x", currOp[1]); unimplementedInstruction(currState); break;
+    case 0xda: {
+      printf("JC     0x%02x%02x", currOp[2], currOp[1]);
+      if(currState->cc.cy == 1){
+        nextPC = ((short)currOp[2] << 8 | currOp[1]);
+        break;
+      }
+      nextPC = currState->pc+3;
+      break;
+    }
+    case 0xdb: {
+      printf("IN     %02x", currOp[1]);
+      //special instruction, address later
+      nextPC = currState->pc+2;
+      break;
+    }
     case 0xdc: printf("CC     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xdd: printf("NOP"); unimplementedInstruction(currState); break;
     case 0xde: printf("SBI    %02x", currOp[1]); unimplementedInstruction(currState); break;
@@ -504,7 +618,16 @@ int emuOp(struct State8080* currState){
       nextPC = currState->pc+1;
       break;
     }
-    case 0xe6: printf("ANI    %02x", currOp[1]); unimplementedInstruction(currState); break;
+    case 0xe6: {
+      printf("ANI    %02x", currOp[1]);
+			currState->a = currState->a & currOp[1];
+      currState->cc.cy = currState->cc.ac = 0;
+	    currState->cc.z = (currState->a == 0);
+	    currState->cc.s = (0x80 == (currState->a & 0x80));
+      currState->cc.p = checkParity(currState->a);
+			nextPC = currState->pc+2;
+      break;
+    }
     case 0xe7: printf("RST    4"); unimplementedInstruction(currState); break;
     case 0xe8: printf("RPE     "); unimplementedInstruction(currState); break;
     case 0xe9: printf("PCHL    "); unimplementedInstruction(currState); break;
@@ -526,17 +649,46 @@ int emuOp(struct State8080* currState){
     case 0xef: printf("RST    5"); unimplementedInstruction(currState); break;
 
     case 0xf0: printf("RP"); unimplementedInstruction(currState); break;
-    case 0xf1: printf("POP PSW"); unimplementedInstruction(currState); break;
+    case 0xf1: {
+      printf("POP PSW");
+			currState->a = currState->memory[currState->sp+1];
+			uint8_t temp = currState->memory[currState->sp];
+			currState->cc.z  = (0x01 == (temp & 0x01));
+			currState->cc.s  = (0x02 == (temp & 0x02));
+			currState->cc.p  = (0x04 == (temp & 0x04));
+			currState->cc.cy = (0x05 == (temp & 0x08));
+			currState->cc.ac = (0x10 == (temp & 0x10));
+			currState->sp += 2;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0xf2: printf("JP     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xf3: printf("DI"); unimplementedInstruction(currState); break;
     case 0xf4: printf("CP     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
-    case 0xf5: printf("PUSHPSW"); unimplementedInstruction(currState); break;
+    case 0xf5: {
+      printf("PUSHPSW");
+			currState->memory[currState->sp-1] = currState->a;
+			uint8_t psw = (currState->cc.z |
+							       currState->cc.s << 1 |
+							       currState->cc.p << 2 |
+							       currState->cc.cy << 3 |
+							       currState->cc.ac << 4 );
+			currState->memory[currState->sp-2] = psw;
+			currState->sp = currState->sp - 2;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0xf6: printf("ORI    %02x", currOp[1]); unimplementedInstruction(currState); break;
     case 0xf7: printf("RST    6"); unimplementedInstruction(currState); break;
     case 0xf8: printf("RM"); unimplementedInstruction(currState); break;
     case 0xf9: printf("SPHL"); unimplementedInstruction(currState); break;
     case 0xfa: printf("JM     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
-    case 0xfb: printf("EI"); unimplementedInstruction(currState); break;
+    case 0xfb: {
+      printf("EI");
+      currState->int_enable = 1;
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0xfc: printf("CM     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xfd: printf("NOP"); unimplementedInstruction(currState); break;
     case 0xfe: {
@@ -582,10 +734,40 @@ void fileToMem(struct State8080* currState, char* filename, uint32_t offset){
 	fclose(f);
 }
 
+uint8_t MachineIN(State8080* state, shiftRegs* regs, uint8_t port){
+  printf("\nMachine In\n");
+  uint8_t a;
+  switch(port){
+    case 3:{
+      uint16_t v = ((regs->shift1)<<8) | regs->shift0;
+      a = ((v >> (8-regs->shiftOffset)) & 0xff);
+    }
+    break;
+  }
+  return a;
+}
+
+void GenerateInterrupt(State8080* state, int interrupt_num){
+
+}
+
+void MachineOUT(shiftRegs* regs, uint8_t port, uint8_t value){
+  printf("\nMachine Out\n");
+  switch(port){
+    case 2:
+      regs->shiftOffset = value & 0x7;
+      break;
+    case 4:
+      regs->shift0 = regs->shift1;
+      regs->shift1 = value;
+      break;
+  }
+}
 
 int main(int argc, char *argv[]){
   //Initialize our 8080 cpu with 16k of memory
   struct State8080* currState = Init8080();
+  struct shiftRegs* regs = malloc(sizeof(shiftRegs));
   currState->pc = 0;
   char def[] = "def";
 
@@ -616,11 +798,21 @@ int main(int argc, char *argv[]){
   printf("Loaded everything into memory!\n");
   while(1){
     printf("Number of steps: %i\n",numSteps);
-    currState->pc = emuOp(currState);
+    uint8_t *opcode = &currState->memory[currState->pc];
+    //if we are reading from an input pin
+    if (opcode[0] == 0xdb){
+        uint8_t port = opcode[1];
+        currState->a = MachineIN(currState, regs, port);
+        currState->pc = currState->pc+2;
+    //if we are writing to an output pin
+    }else if (opcode[0] == 0xd3){
+        uint8_t port = opcode[1];
+        MachineOUT(regs, port, currState->a);
+        currState->pc = currState->pc+2;
+    }else{
+      currState->pc = emuOp(currState);
+    }
     numSteps++;
-    //if (numSteps%100 == 0)
-      //getchar();
   }
-
   return 0;
 }
