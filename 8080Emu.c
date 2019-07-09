@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 
 typedef struct condCodes {
     uint8_t    z:1;
@@ -243,7 +244,16 @@ int emuOp(struct State8080* currState){
     }
     case 0x33: printf("INX    SP"); unimplementedInstruction(currState); break;
     case 0x34: printf("INR    M"); unimplementedInstruction(currState); break;
-    case 0x35: printf("DCR    M"); unimplementedInstruction(currState); break;
+    case 0x35:{
+      printf("DCR    M");
+      uint16_t hlLoc = currState->h << 8 | currState->l;
+      currState->memory[hlLoc] = currState->memory[hlLoc]-1;
+			currState->cc.z = (currState->memory[hlLoc] == 0);
+			currState->cc.s = (0x80 == (currState->memory[hlLoc] & 0x80));
+			currState->cc.p = checkParity(currState->memory[hlLoc]);
+      nextPC = currState->pc+1;
+      break;
+    }
     case 0x36:{
       printf("MVI    M, %02x", currOp[1]);
       uint16_t memLoc = (currState->h<<8) | (currState->l);
@@ -747,8 +757,12 @@ uint8_t MachineIN(State8080* state, shiftRegs* regs, uint8_t port){
   return a;
 }
 
-void GenerateInterrupt(State8080* state, int interrupt_num){
-
+void GenerateInterrupt(State8080* currState, int interrupt_num){
+  //push PC
+  currState->memory[currState->sp-1] = (currState->pc & 0xFF00) >> 8;
+  currState->memory[currState->sp-2] = (currState->pc & 0xff);
+  currState->sp = currState->sp - 2;
+  currState->pc = 8 * interrupt_num;
 }
 
 void MachineOUT(shiftRegs* regs, uint8_t port, uint8_t value){
@@ -764,7 +778,9 @@ void MachineOUT(shiftRegs* regs, uint8_t port, uint8_t value){
   }
 }
 
+
 int main(int argc, char *argv[]){
+  printf("Ass\n");
   //Initialize our 8080 cpu with 16k of memory
   struct State8080* currState = Init8080();
   struct shiftRegs* regs = malloc(sizeof(shiftRegs));
@@ -790,7 +806,8 @@ int main(int argc, char *argv[]){
   	fileToMem(currState, argv[3], 0x1000);
     fileToMem(currState, argv[4], 0x1800);
   }
-
+  time_t lastInterrupt = time(NULL);
+  uint8_t intEnable = 1;
 
   //Execute the program by reading and executing instruction at a time
   int pc = 0;
@@ -809,6 +826,12 @@ int main(int argc, char *argv[]){
         uint8_t port = opcode[1];
         MachineOUT(regs, port, currState->a);
         currState->pc = currState->pc+2;
+    }else if (time(NULL) - lastInterrupt > 1.0/60.0){
+        //only do an interrupt if they are enabled
+        if (intEnable){
+            GenerateInterrupt(currState, 2);    //interrupt 2
+            lastInterrupt = time(NULL);
+        }
     }else{
       currState->pc = emuOp(currState);
     }
