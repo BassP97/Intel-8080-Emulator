@@ -527,7 +527,13 @@ int emuOp(struct State8080* currState){
       break;
     }
     case 0xc7: printf("RST    0"); unimplementedInstruction(currState); break;
-    case 0xc8: printf("RZ"); unimplementedInstruction(currState); break;
+    case 0xc8: {
+      if (!(currState->cc.z)){
+        nextPC = currState->pc+1;
+        break;
+      }
+      printf("RZ");
+    }
     case 0xc9: {
       printf("RET");
       nextPC = ((short)currState->memory[currState->sp]<<8|currState->memory[currState->sp+1]);
@@ -535,7 +541,15 @@ int emuOp(struct State8080* currState){
       currState->sp = currState->sp+2;
       break;
     }
-    case 0xca: printf("JZ     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
+    case 0xca:{
+      printf("JZ     0x%02x%02x", currOp[2], currOp[1]);
+      if(currState->cc.z){
+        nextPC = ((short)currOp[2] << 8 | currOp[1]);
+      }else{
+        nextPC = currState->pc + 3;
+      }
+      break;
+    }
     case 0xcb: printf("NOP"); unimplementedInstruction(currState); break;
     case 0xcc: printf("CZ     0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
     case 0xcd: {
@@ -762,6 +776,7 @@ void GenerateInterrupt(State8080* currState, int interrupt_num){
   currState->memory[currState->sp-1] = (currState->pc & 0xFF00) >> 8;
   currState->memory[currState->sp-2] = (currState->pc & 0xff);
   currState->sp = currState->sp - 2;
+
   currState->pc = 8 * interrupt_num;
 }
 
@@ -780,7 +795,6 @@ void MachineOUT(shiftRegs* regs, uint8_t port, uint8_t value){
 
 
 int main(int argc, char *argv[]){
-  printf("Ass\n");
   //Initialize our 8080 cpu with 16k of memory
   struct State8080* currState = Init8080();
   struct shiftRegs* regs = malloc(sizeof(shiftRegs));
