@@ -8,7 +8,7 @@ Since the emulator is written in raw C, the user only needs a C compiler to get 
 After cloning the repo using git, open up a terminal and type "make" within your cloned directory. After making, type "./disas $filename$" to see the disassembly for any 8080 program, and type "./emu def" to run space invaders. The user can run arbitrary 8080 code by splitting the 8080 code into four different files (each of which should contain 2 kilobytes of code) and typing "./emu $file one$ $file two$ $file three$ $file four$"
 
 ## Example Output
-For each instruction, the emulator runs the instruction and then outputs instruction's effects in a message that resembles the following: 
+Every cycle the emulator reads the instruction at the current program counter, runs that instruction, and then outputs that instruction's effects in a message that resembles the following: 
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Number of steps: 64800\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x360023 at current PC 0x1a5f\
