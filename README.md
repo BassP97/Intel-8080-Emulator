@@ -10,8 +10,7 @@ After cloning the repo using git, open up a terminal and type "make" within your
 ## Example Output
 For each instruction, the emulator runs the instruction and then outputs instruction's effects in a message that resembles the following: 
 
-Number of steps: 64800
-
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Number of steps: 64800\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x360023 at current PC 0x1a5f\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Current Processor currState:\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; C=1    P=1    S=1    Z=0\
