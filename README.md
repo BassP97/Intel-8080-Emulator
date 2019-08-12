@@ -12,15 +12,11 @@ For each instruction, the emulator runs the instruction and then outputs instruc
 
 Number of steps: 64800
 
-0x360023 at current PC 0x1a5f
-
-Current Processor currState:
-
-C=1    P=1    S=1    Z=0
-
-A:0x29 B:0x00 C:0x00 D:0x1c E:0x00 H:0x29 L:0xbd SP:0x23fc
-
-MVI    M, 00
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x360023 at current PC 0x1a5f
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Current Processor currState:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; C=1    P=1    S=1    Z=0
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A:0x29 B:0x00 C:0x00 D:0x1c E:0x00 H:0x29 L:0xbd SP:0x23fc
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MVI    M, 00
 
 In order, this reflects the current instruction's bytes (in hex) and the current program counter, as well as the current flag state and current register state (including the stack pointer). Finally, the message includes the disassembly of the current instruction. 
 
