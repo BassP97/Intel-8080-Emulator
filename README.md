@@ -5,7 +5,9 @@ This is an emulator of the intel 8080, one of the first 8 bit microprocessors. A
 Since the emulator is written in raw C, the user only needs a C compiler to get started. While the processor is only 8 bits, there are instructions that rely on bit arithmetic using 16 bit values, and this program has only been tested on little endian CPUs. Therefore those instructions may either malfunction or fail to execute on big endian CPUs.
 
 ## Getting Started
-After cloning the repo using git, open up a terminal and type "make" within your cloned directory. After making, type "./disas $filename$" to see the disassembly for any 8080 program, and type "./emu def" to run space invaders. The user can run arbitrary 8080 code by splitting the 8080 code into four different files (each of which should contain 2 kilobytes of code) and typing "./emu $file one$ $file two$ $file three$ $file four$"
+After cloning the repo using git, open up a terminal and type "make" within your cloned directory. After making, type "./disas $filename$" to see the disassembly for any 8080 program, and type "./emu def" to run space invaders. Note - this is NOT a gui based program, and only runs the 8080 code and shows the current processor state. Therefore, space invaders is not playable and is simply meant as a way of demonstrating the emulator's capabilities. 
+
+The user can run arbitrary 8080 code by splitting the 8080 code into four different files (each of which should contain 2 kilobytes of code) and typing "./emu $file one$ $file two$ $file three$ $file four$"
 
 ## Example Output
 Every cycle the emulator reads the instruction at the current program counter, runs that instruction, and then outputs that instruction's effects in a message that resembles the following: 
