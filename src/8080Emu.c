@@ -740,11 +740,24 @@ struct State8080* Init8080(){
 	return currState;
 }
 
+void prepend(char* s, const char* t)
+{
+    printf("%s, %s\n", s, t);
+    size_t len = strlen(t);
+    memmove(s + len, s, strlen(s) + 1);
+    memcpy(s, t, len);
+}
+
 void fileToMem(struct State8080* currState, char* filename, uint32_t offset){
   printf("Loading %s into memory\n", filename);
-  FILE *f= fopen(filename, "rb");
+  char* temp = "../data/";
+  //assumes filename is no longer than 93 bytes
+  char* s = malloc(100);
+  strcpy(s, filename);
+  prepend(s,temp);
+  FILE *f= fopen(s, "rb");
 	if (f==NULL){
-		printf("error: Couldn't open %s\n", filename);
+		printf("error: Couldn't open %s. Are you sure the specified file is in the ../data directory?\n", s);
 		exit(1);
 	}
 
@@ -800,16 +813,20 @@ int main(int argc, char *argv[]){
   struct shiftRegs* regs = malloc(sizeof(shiftRegs));
   currState->pc = 0;
   char def[] = "def";
-
+  char test[] = "test";
+  printf("lol\n");
   //Open all four files and write them to the appropriate locations in memory
   //Arguments for space invaders should be in order: .h, .g, .f, .e
-
+  chdir("cd ../data");
+  printf("lol2\n");
   //Each file should be 2 kilobytes
   if (strcmp(def, argv[1]) == 0){
     fileToMem(currState, "invaders.h", 0);
   	fileToMem(currState, "invaders.g", 0x800);
   	fileToMem(currState, "invaders.f", 0x1000);
     fileToMem(currState, "invaders.e", 0x1800);
+  }else if (strcmp(test, argv[1]) == 0){
+    fileToMem(currState, "TEST.COM", 0);
   }else{
     if (argc!=5){
       fprintf(stderr, "Please provide four arguments (your .h, .g, .f, and .e files) or execute the default, space invaders program by providing one argument, <def>\n");
