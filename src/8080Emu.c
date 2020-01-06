@@ -6,27 +6,26 @@
 #include <time.h>
 
 typedef struct condCodes {
-    uint8_t    z:1;
-    uint8_t    s:1;
-    uint8_t    p:1;
-    uint8_t    cy:1;
-    uint8_t    ac:1;
-    uint8_t    pad:3;
+    uint8_t    z:1;  //zero flag
+    uint8_t    s:1;  //sign flag
+    uint8_t    p:1;  //parity flag
+    uint8_t    cy:1; //carry flag
+    uint8_t    ac:1; //aux carry flag
 } condCodes;
 
 typedef struct State8080 {
-    uint8_t    a;       //a through l (as well as sp and pc) are 8 bit registers
+    uint8_t    a;         //a through l (as well as sp and pc) are 8 bit registers
     uint8_t    b;
     uint8_t    c;
     uint8_t    d;
     uint8_t    e;
     uint8_t    h;
     uint8_t    l;
-    uint16_t   sp;      //"Special" registers that store the stack pointer
-    uint16_t   pc;      //And program counter
-    uint8_t    *memory; //Stores the RAM for our 8080
-    struct     condCodes      cc;
-    uint8_t    int_enable;
+    uint16_t   sp;        //Stores the stack pointer - 16 bit register
+    uint16_t   pc;        //Stores program counter - also 16 bits
+    uint8_t    *memory;   //Stores the RAM for our 8080
+    struct     condCodes      cc; //stores condition codes 
+    uint8_t    int_enable;//enables/disables interrupts
 } State8080;
 
 typedef struct shiftRegs{
@@ -45,7 +44,7 @@ void unimplementedInstruction(struct State8080* currState){
 //Checks the parity of a given value
 //Hard coded to ONLY work with 8 bit values
 int checkParity(uint8_t x){
-  short y = x ^ (x >> 1);
+  uint16_t y = x ^ (x >> 1);
   y = y ^ (y >> 2);
   y = y ^ (y >> 4);
   y = y ^ (y >> 8);
@@ -54,6 +53,7 @@ int checkParity(uint8_t x){
   return 0;
 }
 
+//emulates the op code found at the current program counter
 int emuOp(struct State8080* currState){
 
   unsigned char* currOp = &currState->memory[currState->pc];
@@ -163,8 +163,8 @@ int emuOp(struct State8080* currState){
     case 0x18: printf("NOP"); unimplementedInstruction(currState); break;
     case 0x19: {
       printf("DAD    D");
-			uint32_t hl = ((short)currState->h << 8) | (currState->l);
-			uint32_t de = ((short)currState->d << 8) | (currState->e);
+			uint32_t hl = ((uint16_t)currState->h << 8) | (currState->l);
+			uint32_t de = ((uint16_t)currState->d << 8) | (currState->e);
 			uint32_t temp = hl + de;
 			currState->h = (temp & 0xff00) >> 8;
 			currState->l = temp & 0xff;
@@ -329,7 +329,7 @@ int emuOp(struct State8080* currState){
     case 0x5d: printf("MOV    E,L"); unimplementedInstruction(currState); break;
     case 0x5e: {
       printf("MOV    E,M");
-			uint16_t memLoc = ((short)currState->h<<8) | (currState->l);
+			uint16_t memLoc = ((uint16_t)currState->h<<8) | (currState->l);
 			currState->e = currState->memory[memLoc];
       nextPC = currState->pc+1;
       break;
@@ -495,7 +495,7 @@ int emuOp(struct State8080* currState){
     case 0xc2: {
       printf("JNZ    0x%02x%02x", currOp[2], currOp[1]);
       if(currState->cc.z == 0){
-        nextPC = ((short)currOp[2]<<8|currOp[1]);
+        nextPC = ((uint16_t)currOp[2]<<8|currOp[1]);
       }else{
         nextPC = currState->pc+3;
       }
@@ -503,7 +503,7 @@ int emuOp(struct State8080* currState){
     }
     case 0xc3:{
       printf("JMP    0x%02x%02x", currState->memory[currState->pc+2], currState->memory[currState->pc+1]);
-      nextPC = ((short)currOp[2] << 8 | currOp[1]);
+      nextPC = ((uint16_t)currOp[2] << 8 | currOp[1]);
       break;
     }
     case 0xc4: printf("CNZ    0x%02x%02x", currOp[2], currOp[1]); unimplementedInstruction(currState); break;
@@ -517,7 +517,7 @@ int emuOp(struct State8080* currState){
     }
     case 0xc6: {
       printf("ADI    %02x", currOp[1]);
-      uint16_t temp = (short) currState->a + (short) currOp[1];
+      uint16_t temp = (uint16_t) currState->a + (uint16_t) currOp[1];
 			currState->cc.z = ((temp & 0xff) == 0);
 			currState->cc.s = (0x80 == (temp & 0x80));
 			currState->cc.p = checkParity(temp&0xff);
@@ -536,7 +536,7 @@ int emuOp(struct State8080* currState){
     }
     case 0xc9: {
       printf("RET");
-      nextPC = ((short)currState->memory[currState->sp]<<8|currState->memory[currState->sp+1]);
+      nextPC = ((uint16_t)currState->memory[currState->sp]<<8|currState->memory[currState->sp+1]);
       nextPC = nextPC+3;
       currState->sp = currState->sp+2;
       break;
@@ -544,7 +544,7 @@ int emuOp(struct State8080* currState){
     case 0xca:{
       printf("JZ     0x%02x%02x", currOp[2], currOp[1]);
       if(currState->cc.z){
-        nextPC = ((short)currOp[2] << 8 | currOp[1]);
+        nextPC = ((uint16_t)currOp[2] << 8 | currOp[1]);
       }else{
         nextPC = currState->pc + 3;
       }
@@ -560,12 +560,12 @@ int emuOp(struct State8080* currState){
       currState->sp = currState->sp-2;
 
       //The above code (specifically  "((char*)&currState->pc)[0]") is somewhat unintuitive
-      //As an explanation: to seperate the 16 bit program counter value into two bits, I cast it to a
-      //character pointer (and thus a character array) and index into it to get the lower and upper bits
+      //As an explanation: to seperate the 16 bit (two byte) program counter value into two seperate bytes, I 
+      //cast it to a character pointer and index into it to get the lower and upper bytes respectively
       //that are then written to the stack.
 
       //move to address being called
-      nextPC = (((short)currState->memory[(currState->pc)+2])) << 8 | currState->memory[(currState->pc)+1];
+      nextPC = (((uint16_t)currState->memory[(currState->pc)+2])) << 8 | currState->memory[(currState->pc)+1];
 
       break;
     }
@@ -605,7 +605,7 @@ int emuOp(struct State8080* currState){
     case 0xda: {
       printf("JC     0x%02x%02x", currOp[2], currOp[1]);
       if(currState->cc.cy == 1){
-        nextPC = ((short)currOp[2] << 8 | currOp[1]);
+        nextPC = ((uint16_t)currOp[2] << 8 | currOp[1]);
         break;
       }
       nextPC = currState->pc+3;
@@ -840,7 +840,7 @@ int main(int argc, char *argv[]){
   time_t lastInterrupt = time(NULL);
   uint8_t intEnable = 1;
 
-  //Execute the program by reading and executing instruction at a time
+  //Execute the program by reading and executing instructions one at a time
   int pc = 0;
   int numSteps = 0;
   printf("Loaded everything into memory!\n");
