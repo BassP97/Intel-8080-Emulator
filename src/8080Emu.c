@@ -769,6 +769,7 @@ void fileToMem(struct State8080* currState, char* filename, uint32_t offset){
 	uint8_t *buffer = &currState->memory[offset];
 	fread(buffer, fsize, 1, f);
 	fclose(f);
+  free(s);
 }
 
 uint8_t MachineIN(State8080* state, shiftRegs* regs, uint8_t port){
