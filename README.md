@@ -19,7 +19,7 @@ Every cycle the emulator reads the instruction at the current program counter, r
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A:0x29 B:0x00 C:0x00 D:0x1c E:0x00 H:0x29 L:0xbd SP:0x23fc\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MVI    M, 00\
 
-In order, this reflects the current instruction's bytes (in hex) and the current program counter, as well as the current flag state and current register state (including the stack pointer). Finally, the message includes the disassembly of the current instruction. 
+In order, this reflects the current instruction's encoding (in hex) and the current program counter, the current flag state and the current register state (including the stack pointer). Finally, the message includes the disassembly of the current instruction. 
 
 ## License
 This emulator is licensed under a standard open <a href = "https://opensource.org/licenses/MIT"> MIT license </a>
