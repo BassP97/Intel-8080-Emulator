@@ -2,7 +2,7 @@
 This is an emulator of the intel 8080, one of the first 8 bit microprocessors. At a high level, my emulator reads a sequence of instructions (a program) from a file, keeping track of its location in the file using a program counter, and executes the program's instructions sequentially. It simulates a full CPU, from the registers to the I/O to the memory. 
 
 ## Legal Disclaimer
-You shouldn't use this program with roms, as that would be illegal. This warning encompasses the (definitely written from scratch and not dubiously obtained) `space invaders` rom found within this repo - whoops!
+You shouldn't use this program with illegally obtained roms, for what I assume are obvious reasons. 
 
 ## Prerequisites
 Since the emulator is written in raw C, the user only needs a C compiler to get started (note - though the program is compiler agnostic, the provided makefile only works with gcc). Further, while the processor is only 8 bits, there are instructions that rely on bit arithmetic using 16 bit values that consist of two concatentated 8 bit values. This program has only been tested on little endian CPUs. Therefore 16 bit instructions may either malfunction or fail to execute on big endian CPUs due to the most and least significant bits getting swapped. 
