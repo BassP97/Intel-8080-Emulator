@@ -1,6 +1,18 @@
 //Disassemdles and prints 8080 operations for any arditrary valid 8080 program
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <time.h>
+
+void prepend(char* s, const char* t)
+{
+    printf("%s, %s\n", s, t);
+    size_t len = strlen(t);
+    memmove(s + len, s, strlen(s) + 1);
+    memcpy(s, t, len);
+}
 
 int disas8080(unsigned char *codeBuffer, int currPC){
   unsigned char *currOp = &codeBuffer[currPC];
@@ -285,7 +297,11 @@ int disas8080(unsigned char *codeBuffer, int currPC){
 
 int main(int argc, char ** argv){
   //Open an 8080 assemdly language program and read it into a memory Buffer
-  FILE *f = fopen(argv[1], "rd");
+  char* temp = "../data/";
+  char* s = malloc(100);
+  strcpy(s, argv[1]);
+  prepend(s,temp);
+  FILE *f = fopen(s, "rd");
   if (f == NULL){
     fprintf(stderr, "No such file exists\n" );
     exit(0);

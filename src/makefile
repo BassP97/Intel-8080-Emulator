@@ -1,3 +1,5 @@
+all: emu disas
+
 emu: 8080Emu.c
 	gcc 8080Emu.c -o emu
 
