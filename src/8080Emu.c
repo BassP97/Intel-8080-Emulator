@@ -815,11 +815,9 @@ int main(int argc, char *argv[]){
   currState->pc = 0;
   char def[] = "def";
   char test[] = "test";
-  printf("lol\n");
   //Open all four files and write them to the appropriate locations in memory
   //Arguments for space invaders should be in order: .h, .g, .f, .e
   chdir("cd ../data");
-  printf("lol2\n");
   //Each file should be 2 kilobytes
   if (strcmp(def, argv[1]) == 0){
     fileToMem(currState, "invaders.h", 0);
