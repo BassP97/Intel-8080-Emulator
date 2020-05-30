@@ -17,7 +17,7 @@ Every cycle the emulator reads the instruction at the current program counter, r
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Number of steps: 64800\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x360023 at current PC 0x1a5f\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Current Processor currState:\
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Current Processor state:\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; C=1    P=1    S=1    Z=0\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A:0x29 B:0x00 C:0x00 D:0x1c E:0x00 H:0x29 L:0xbd SP:0x23fc\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MVI    M, 00\
