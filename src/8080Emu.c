@@ -57,7 +57,7 @@ int checkParity(uint8_t x){
 int emuOp(struct State8080* currState){
 
   unsigned char* currOp = &currState->memory[currState->pc];
-  printf("0x%02x%02x%02x at current PC 0x%04x\nCurrent Processor currState:\n", currOp[0],currOp[1],currOp[2], currState->pc);
+  printf("0x%02x%02x%02x at current PC 0x%04x\nCurrent Processor state:\n", currOp[0],currOp[1],currOp[2], currState->pc);
   printf(" C=%d    P=%d    S=%d    Z=%d\n", currState->cc.cy, currState->cc.p,
         currState->cc.s, currState->cc.z);
   printf(" A:0x%02x B:0x%02x C:0x%02x D:0x%02x E:0x%02x H:0x%02x L:0x%02x SP:0x%04x\n",
